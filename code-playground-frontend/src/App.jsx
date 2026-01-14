@@ -182,31 +182,36 @@ function App() {
                     key={user.id}
                     className="flex item-center gap-3 p-3 bg-gray-900 rounded-xl"
                   >
-                    <div className="w-10 h-10 bg-gradient-to-r from-blue-500 to-purple-600 rounded-full flex items-center justify-center font-semibold text-sm text-sm">
+                    <div className="w-10 h-10 bg-gradient-to-r from-blue-500 to-purple-600 rounded-full flex items-center justify-center font-semibold text-sm ">
                       {user.username.slice(0, 2).toUpperCase()}
                     </div>
-                    <span>{user.username}</span>
-                    {user.id === socket.id && <span>You</span>}
+                    <span className="font-medium text-gray-200 ">
+                      {user.username}
+                    </span>
+                    {user.id === socket.id && (
+                      <span className="text-xs bg-gray-500 px-2 py-1 rounded-full ">
+                        You
+                      </span>
+                    )}
                   </div>
                 ))}
               </div>
             </div>
-          </div>
 
-          {/*preview*/}
-          <div className="bg-gray-800/80 backdrop-blur-sm border-gray-700 rounded-2xl p-6 sticky top-8 ">
-            <h2
-              className="text-2xl font-semibold
+            {/*preview*/}
+            <div className="bg-gray-800/80 backdrop-blur-sm border-gray-700 rounded-2xl p-6 sticky top-8 ">
+              <h3
+                className="text-2xl font-semibold
              mb-6 text-gray-100 "
-            >
-              Live Preview
-            </h2>
-            <iframe
-              srcDoc={generatePreviewHtml()}
-              className="w-full h-96 bg-white border border-gray-300 rounded-2xl shadow-2xl"
-              sandbox="allow-scripts allow-same-origin"
-              title=" Live Preview"
-            />
+              >
+                Live Preview
+              </h3>
+              <iframe
+                srcDoc={generatePreviewHtml()}
+                className="w-full h-96 bg-white border border-gray-300 rounded-2xl shadow-2xl"
+                sandbox="allow-scripts allow-same-origin"
+              />
+            </div>
           </div>
         </div>
 
