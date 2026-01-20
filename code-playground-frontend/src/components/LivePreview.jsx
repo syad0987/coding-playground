@@ -1,10 +1,10 @@
-const LivePreview = ({ html, css, js }) => {
+const LivePreview = ({ code }) => {
   const generatePreviewHtml = () => {
     return `
       <!DOCTYPE html>
       <html>
-      <head><style>${css}</style></head>
-      <body>${html}<script>${js}</script></body>
+      <head><style>${code.css}</style></head>
+      <body>${code.html}<script>${code.js}</script></body>
       </html>
     `;
   };

@@ -13,22 +13,19 @@ function App() {
     roomId,
     username,
     setUsername,
-    isConnected,
+
     users,
     code,
     updateCode,
-    socket,
+    createNewRoom,
+    socketId,
   } = useCodeSync();
 
-  const handleNewRoom = () => {
-    window.location.reload();
-  };
-
-  if (!isConnected) {
+  if (!roomId) {
     return <ConnectionScreen username={username} setUsername={setUsername} />;
   }
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-900 via-purple-900 to-gray-900 p-8">
+    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-gray-900 p-8">
       <div className="max-w-6xl mx-auto">
         {/*header*/}
         <header className="mb-8 flex flex-col lg:flex-row lg:items-center justify-between gap-4">
@@ -38,11 +35,14 @@ function App() {
             </h1>
 
             <div className=" flex items-center  gap-4  mt-2">
-              <span>{users.length} online</span>
-              <span className="text-sm text-gray-400">you:{username}</span>
+              <p className="text-gray-400">
+                Room: <code className="font-mono">{roomId}</code> |{" "}
+                {users.length} online <br />
+                <span className="text-sm text-gray-400">you:{username}</span>
+              </p>
             </div>
           </div>
-          <RoomControls roomId={roomId} onNewRoom={handleNewRoom} />
+          <RoomControls roomId={roomId} onNewRoom={createNewRoom} />
         </header>
 
         {/*main layout*/}
@@ -60,7 +60,7 @@ function App() {
               <CodeEditor
                 activeTab={activeTab}
                 code={code}
-                onCodeChange={(newCode) => updateCode(activeTab, newCode)}
+                onCodeChange={updateCode}
               />
             </div>
           </div>
@@ -68,7 +68,7 @@ function App() {
           {/*users panel=sidebar*/}
           <div className="space-y-6">
             <div className="bg-gray-800 backdrop-blur-sm border border-gray-700 rounded-2xl p-6 sticky top-6">
-              <UserList users={users} currentUserId={socket.id} />
+              <UserList users={users} socketId={socketId} />
             </div>
 
             {/*preview*/}
@@ -79,7 +79,7 @@ function App() {
               >
                 Live Preview
               </h3>
-              <LivePreview html={code.html} css={code.css} js={code.js} />
+              <LivePreview code={code} />
             </div>
           </div>
         </div>
