@@ -2,6 +2,24 @@ const express = require("express");
 const http = require("http");
 const { Server } = require("socket.io");
 const cors = require("cors");
+//  Load environment variables
+require("dotenv").config();
+const mongoose = require("mongoose");
+//project schema
+const projectSchema = new mongoose.Schema({
+  title: { type: String, required: true },
+  roomId: String,
+  code: {
+    html: String,
+    css: String,
+    js: String,
+  },
+  owner: String,
+  ispublic: { type: Boolean, default: false },
+  createAt: { type: Date, default: Date.now },
+});
+
+const Project = mongoose.model("Project", projectSchema);
 
 const app = express();
 const server = http.createServer(app);
@@ -13,7 +31,6 @@ app.use(express.json());
 app.get("/health", (req, res) => {
   res.json({ status: "ok", message: "code playground backend" });
 });
-
 const rooms = {};
 
 io.on("connection", (socket) => {
@@ -56,73 +73,40 @@ io.on("connection", (socket) => {
   });
 });
 
-// io.on("connection", (socket) => {
-//   console.log("connected:", socket.id);
-//   // ✅ BLOCK DUPLICATES (React StrictMode fix)
-//   if (recentConnections.has(socket.id)) {
-//     console.log("🚫 Duplicate connection blocked:", socket.id);
-//     socket.disconnect();
-//     return;
-//   }
-//   recentConnections.set(socket.id, Date.now());
-//   setTimeout(() => recentConnections.delete(socket.id), 10000);
-
-//   let reconnectTimer;
-
-//   socket.on("join-room", ({ roomId, username }) => {
-//     clearTimeout(reconnectTimer); //clear pending reconnect
-//     socket.roomId = roomId;
-//     socket.username = username || `User-${socket.id.slice(-4)}`;
-//     socket.join(roomId);
-
-//     //track users in room
-//     //initalize room users
-//     if (!rooms[roomId]) {
-//       rooms[roomId] = [];
-//     }
-//     //add user to room
-
-//     rooms[roomId] = rooms[roomId].filter((u) => u.id !== socket.id);
-
-//     rooms[roomId].push({ id: socket.id, username: socket.username });
-//     console.log(
-//       `${socket.username} joined ${roomId} (${rooms[roomId].length})`,
-//     );
-//     //broadcast existing users list
-//     io.to(roomId).emit("user-joined", {
-//       users: rooms[roomId],
-//       message: `${socket.username} joined! (${rooms[roomId].length}) `,
-//     });
-//   });
-
-//   socket.on("code-change", (data) => {
-//     if (data.roomId && socket.roomId === data.roomId) {
-//       console.log(`Code change in ${data.roomId}`);
-//       socket.to(data.roomId).emit("code-updated", data.code);
-//     }
-//   });
-//   socket.on("disconnect", (reason) => {
-//     if (socket.roomId && rooms[socket.roomId]) {
-//       reconnectTimer = setTimeout(() => {
-//         const roomUsers = rooms[socket.roomId] || [];
-//         rooms[socket.roomId] = roomUsers.filter((u) => u.id !== socket.id);
-//         if (rooms[socket.roomId].length === 0) {
-//           delete rooms[socket.roomId];
-//         }
-//         io.to(socket.roomId).emit("user-left", {
-//           users: rooms[socket.roomId] || [],
-//           message: `${socket.username || "user"} left (${reason})`,
-//         });
-
-//         console.log(
-//           ` ${socket.username || "user"} left ${socket.roomId} (${
-//             rooms[socket.roomId]?.length || 0
-//           } left)`,
-//         );
-//       }, 3000);
-//     }
-//   });
-// });
+//connect to mongoDB
+mongoose
+  .connect(process.env.MONGODB_URI)
+  .then(() => console.log("MongoDB connected"))
+  .catch((err) => console.error("MongoDB Error:", err));
+//Creates a new project in MongoDB(to save functionalities)
+app.post("/projects", async (req, res) => {
+  try {
+    const project = new Project(req, res);
+    await project.save();
+    res.json({ project });
+  } catch (err) {
+    res.status(400).json({ error: err.message });
+  }
+});
+//Fetches all projects for a given owner
+app.get("/projects", async (req, res) => {
+  try {
+    const projects = await Project.find({ owner: req.query.owner });
+    res.json(projects);
+  } catch (err) {
+    res.status(400).json({ error: err.message });
+  }
+});
+// Fetches a single project by its MongoDB _id
+app.get("/projects/:id", async (req, res) => {
+  try {
+    const project = await Project.findById(req.params.id);
+    if (!project) return res.status(404).json({ error: "not found" });
+    res.json(project);
+  } catch (err) {
+    res.status(400).json({ error: err.message });
+  }
+});
 
 const PORT = 3001;
 server.listen(PORT, () => {

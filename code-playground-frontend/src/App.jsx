@@ -6,20 +6,50 @@ import UserList from "./components/UserList";
 import RoomControls from "./components/RoomControls";
 import LivePreview from "./components/LivePreview";
 import ConnectionScreen from "./components/ConnectionScreen";
-
+import ProjectModal from "./components/ProjectModal";
 function App() {
   const [activeTab, setActiveTab] = useState("html");
   const {
     roomId,
     username,
     setUsername,
-
     users,
     code,
     updateCode,
     createNewRoom,
     socketId,
   } = useCodeSync();
+  const [showProjects, setShowProjects] = useState(false);
+  const [projects, setProjects] = useState([]);
+
+  const saveProjects = async (title) => {
+    const project = {
+      title,
+      roomId,
+      code,
+      owner: username,
+      isPublic: true,
+    };
+    const res = await fetch("http://localhost:3001/projects", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify(project),
+    });
+    const saved = await res.json();
+    setProjects([...projects, saved.project]);
+    setShowProjects(false);
+  };
+  const loadProjects = async () => {
+    const res = await fetch(`http://localhost:3001/projects?owner=${username}`);
+    const userProjects = await res.json();
+    setProjects(userProjects);
+    setShowProjects(true);
+  };
+  const loadProject = async (projectId) => {
+    const res = await fetch(`http://localhost:3001/projects/${projectId}`);
+    const project = await res.json();
+    setCode(project.code);
+  };
 
   if (!roomId) {
     return <ConnectionScreen username={username} setUsername={setUsername} />;
@@ -43,8 +73,21 @@ function App() {
             </div>
           </div>
           <RoomControls roomId={roomId} onNewRoom={createNewRoom} />
+          <button
+            onClick={loadProjects}
+            className="bg-blue-500 px-4 py-2 rounded-xl"
+          >
+            Projects
+          </button>
         </header>
-
+        {/*Add modal*/}
+        <ProjectModal
+          isOpen={showProjects}
+          onClose={() => setShowProjects(false)}
+          projects={projects}
+          onSave={saveProjects}
+          onLoad={loadProject}
+        ></ProjectModal>
         {/*main layout*/}
         <div className="grid grid-cols-1 xl:grid-cols-4 gap-8 items-start">
           {/*editor*/}
