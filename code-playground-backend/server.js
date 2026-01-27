@@ -5,6 +5,7 @@ const cors = require("cors");
 //  Load environment variables
 require("dotenv").config();
 const mongoose = require("mongoose");
+const { title } = require("process");
 //project schema
 const projectSchema = new mongoose.Schema({
   title: { type: String, required: true },
@@ -81,20 +82,32 @@ mongoose
 //Creates a new project in MongoDB(to save functionalities)
 app.post("/projects", async (req, res) => {
   try {
-    const project = new Project(req, res);
+    const projectData = {
+      title: req.body.title || "untitled",
+      roomId: req.body.roomi,
+      code: req.body.code,
+      owner: req.body.owner,
+      ispublic: req.body.ispublic ?? false,
+    };
+    const project = new Project(projectData);
+
     await project.save();
+
+    console.log("Received project:", project);
+
     res.json({ project });
   } catch (err) {
-    res.status(400).json({ error: err.message });
+    res.status(500).json({ error: err.message });
   }
 });
+
 //Fetches all projects for a given owner
 app.get("/projects", async (req, res) => {
   try {
     const projects = await Project.find({ owner: req.query.owner });
     res.json(projects);
   } catch (err) {
-    res.status(400).json({ error: err.message });
+    res.status(500).json({ error: err.message });
   }
 });
 // Fetches a single project by its MongoDB _id
@@ -104,12 +117,12 @@ app.get("/projects/:id", async (req, res) => {
     if (!project) return res.status(404).json({ error: "not found" });
     res.json(project);
   } catch (err) {
-    res.status(400).json({ error: err.message });
+    res.status(500).json({ error: err.message });
   }
 });
 
 const PORT = 3001;
-server.listen(PORT, () => {
+app.listen(PORT, () => {
   console.log(`🚀 Backend running: http://localhost:${PORT}`);
   console.log(`test health: http://localhost:${PORT}/health`);
 });

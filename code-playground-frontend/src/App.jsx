@@ -21,8 +21,9 @@ function App() {
   } = useCodeSync();
   const [showProjects, setShowProjects] = useState(false);
   const [projects, setProjects] = useState([]);
+  const [loading, setLoading] = useState(false);
 
-  const saveProjects = async (title) => {
+  const saveProject = async (title) => {
     const project = {
       title,
       roomId,
@@ -40,15 +41,29 @@ function App() {
     setShowProjects(false);
   };
   const loadProjects = async () => {
-    const res = await fetch(`http://localhost:3001/projects?owner=${username}`);
-    const userProjects = await res.json();
-    setProjects(userProjects);
     setShowProjects(true);
+    try {
+      const res = await fetch(
+        `http://localhost:3001/projects?owner=${username}`,
+      );
+      const userProjects = await res.json();
+      setProjects(userProjects);
+    } catch (err) {
+      console.error("error loading projects:", err);
+    }
   };
   const loadProject = async (projectId) => {
-    const res = await fetch(`http://localhost:3001/projects/${projectId}`);
-    const project = await res.json();
-    setCode(project.code);
+    setLoading(true);
+    setShowProjects(true);
+
+    try {
+      const res = await fetch(`http://localhost:3001/projects/${projectId}`);
+      const project = await res.json();
+      updateCode(project.code);
+    } finally {
+      setLoading(false);
+      setShowProjects(false);
+    }
   };
 
   if (!roomId) {
@@ -85,7 +100,7 @@ function App() {
           isOpen={showProjects}
           onClose={() => setShowProjects(false)}
           projects={projects}
-          onSave={saveProjects}
+          onSave={saveProject}
           onLoad={loadProject}
         ></ProjectModal>
         {/*main layout*/}
