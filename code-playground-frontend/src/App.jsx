@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useCodeSync } from "./hooks/useCodeSync";
 import EditorTabs from "./components/EditorTabs";
 import CodeEditor from "./components/CodeEditor";
@@ -7,6 +7,7 @@ import RoomControls from "./components/RoomControls";
 import LivePreview from "./components/LivePreview";
 import ConnectionScreen from "./components/ConnectionScreen";
 import ProjectModal from "./components/ProjectModal";
+// import { set } from "mongoose";
 function App() {
   const [activeTab, setActiveTab] = useState("html");
   const {
@@ -22,44 +23,70 @@ function App() {
   const [showProjects, setShowProjects] = useState(false);
   const [projects, setProjects] = useState([]);
   const [loading, setLoading] = useState(false);
+  const [userCount, setUserCount] = useState(0);
+  useEffect(() => {
+    setUserCount(users.length);
+  }, [users]);
 
   const saveProject = async (title) => {
+    if (!title || !title.trim()) {
+      alert("please enter project name");
+      return;
+    }
     const project = {
       title,
       roomId,
       code,
       owner: username,
-      isPublic: true,
+      ispublic: true,
     };
-    const res = await fetch("http://localhost:3001/projects", {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify(project),
-    });
-    const saved = await res.json();
-    setProjects([...projects, saved.project]);
-    setShowProjects(false);
+    try {
+      const res = await fetch("http://localhost:3001/projects", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify(project),
+      });
+      if (!res.ok) throw new Error("saved failed");
+      const saved = await res.json();
+      console.log("✅ SAVED project:", saved.project._id);
+
+      setProjects([...projects, saved.project]);
+      setTimeout(() => loadProjects(), 300);
+      setShowProjects(false);
+    } catch (err) {
+      console.log("save error:", err);
+      alert("save failed - check backend");
+    }
   };
   const loadProjects = async () => {
+    if (!username) {
+      console.log("no username- skip load");
+      setProjects([]);
+      return;
+    }
+    console.log("loacding for username:", username);
+
     setShowProjects(true);
     try {
       const res = await fetch(
-        `http://localhost:3001/projects?owner=${username}`,
+        `http://localhost:3001/projects?owner=${encodeURIComponent(username)}`,
       );
       const userProjects = await res.json();
-      setProjects(userProjects);
+      setProjects(Array.isArray(userProjects) ? userProjects : []);
     } catch (err) {
       console.error("error loading projects:", err);
+      setProjects([]);
     }
   };
   const loadProject = async (projectId) => {
     setLoading(true);
-    setShowProjects(true);
+    // setShowProjects(false);
 
     try {
       const res = await fetch(`http://localhost:3001/projects/${projectId}`);
       const project = await res.json();
       updateCode(project.code);
+      setActiveTab("html");
     } finally {
       setLoading(false);
       setShowProjects(false);
@@ -81,8 +108,8 @@ function App() {
 
             <div className=" flex items-center  gap-4  mt-2">
               <p className="text-gray-400">
-                Room: <code className="font-mono">{roomId}</code> |{" "}
-                {users.length} online <br />
+                Room: <code className="font-mono">{roomId}</code> | {userCount}{" "}
+                online <br />
                 <span className="text-sm text-gray-400">you:{username}</span>
               </p>
             </div>
@@ -96,13 +123,15 @@ function App() {
           </button>
         </header>
         {/*Add modal*/}
-        <ProjectModal
-          isOpen={showProjects}
-          onClose={() => setShowProjects(false)}
-          projects={projects}
-          onSave={saveProject}
-          onLoad={loadProject}
-        ></ProjectModal>
+        {showProjects && (
+          <ProjectModal
+            isOpen={showProjects}
+            onClose={() => setShowProjects(false)}
+            projects={projects || []}
+            onSave={saveProject}
+            onLoad={loadProject}
+          />
+        )}
         {/*main layout*/}
         <div className="grid grid-cols-1 xl:grid-cols-4 gap-8 items-start">
           {/*editor*/}

@@ -29,7 +29,14 @@ const ProjectModal = ({ isOpen, onClose, projects, onSave, onLoad }) => {
                   onClose();
                 }}
               >
-                <h4 className="font-semibold">{project.title}</h4>
+                {projects
+                  ?.filter((p) => p && p.title) // Safety filter
+                  .map((project) => (
+                    <div key={project._id} onClick={() => onLoad(project._id)}>
+                      {project.title} {/* Fixed undefined.title */}
+                    </div>
+                  )) || <div>No projects</div>}
+
                 {project.createdAt && (
                   <p className="text-sm text-gray-400">
                     {new Date(project.createdAt).toLocaleDateString()}
@@ -53,9 +60,9 @@ const ProjectModal = ({ isOpen, onClose, projects, onSave, onLoad }) => {
             className=" w-full p-3 bg-gray-800 border rounded-xl mb-4"
             onChange={(e) => setProjectTitle(e.target.value)}
             onKeyDown={(e) => {
-              if (e.key === "Enter") {
-                onSave(projectTitle || "untitled");
-                setProjectTitle("");
+              if (e.key === "Enter" && projectTitle.trim()) {
+                onSave(projectTitle.trim());
+                setProjectTitle(""); // reset only after save
                 onClose();
               }
             }}
@@ -65,10 +72,13 @@ const ProjectModal = ({ isOpen, onClose, projects, onSave, onLoad }) => {
         <div className="flex gap-3">
           <button
             className="flex-1 bg-green-500 hover:bg-green-600 p-3 rounded-xl font-medium"
+            disabled={!projectTitle.trim()} // disable if empty
             onClick={() => {
-              onSave(projectTitle || "untitled");
-              setProjectTitle("");
-              onClose();
+              if (projectTitle.trim()) {
+                onSave(projectTitle.trim());
+                setProjectTitle("");
+                onClose();
+              }
             }}
           >
             Save New
