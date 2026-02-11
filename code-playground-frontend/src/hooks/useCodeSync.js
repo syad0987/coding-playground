@@ -3,7 +3,8 @@ import { useEffect, useState, useCallback, useMemo } from "react";
 
 import { io } from "socket.io-client";
 import { v4 as uuidv4 } from "uuid";
-export const useCodeSync = () => {
+
+export const useCodeSync = ({ user } = {}) => {
   const [roomId, setRoomId] = useState(() => {
     const hash = window.location.hash.replace("#", "");
     return hash || uuidv4().slice(0, 8);
@@ -32,9 +33,6 @@ export const useCodeSync = () => {
 
   //join room logic, Connection sequence
   useEffect(() => {
-    if (!roomId) return;
-    console.log("🚪 Joining room:", roomId);
-
     // Join room immediately
 
     const handleConnection = () => {
@@ -42,17 +40,25 @@ export const useCodeSync = () => {
       setIsConnected(true);
 
       // Join AFTER connection established
-      socket.emit("join-room", { roomId, username });
+      socket.emit("join-room", {
+        roomId,
+        username: user?.displayName || username,
+        firebaseUid: user?.uid,
+      });
     };
-
-    const handleUserJoined = ({ users: userList }) => {
-      console.log("users updated:", userList.length, "users");
-      setUsers(userList); //backend give fullList
+    const handleInitialCode = (roomCode) => {
+      console.log("Intial room code loaded:", roomCode);
+      setCode(roomCode);
     };
     const handleCodeUpdated = (newCode) => {
       console.log("code-change");
       setCode(newCode);
     };
+    const handleUserJoined = ({ users: userList }) => {
+      console.log("users updated:", userList.length, "users");
+      setUsers(userList); //backend give fullList
+    };
+
     const handleUserLeft = ({ users: userList }) => {
       console.log("user left:", userList.length, "users");
       setUsers(userList);
@@ -65,21 +71,24 @@ export const useCodeSync = () => {
 
     // Listener for connection events
     socket.on("connect", handleConnection);
-    socket.on("user-joined", handleUserJoined);
+    socket.on("initial-code", handleInitialCode);
     socket.on("code-change", handleCodeUpdated);
+    socket.on("user-joined", handleUserJoined);
+
     socket.on("user-left", handleUserLeft);
     socket.on("disconnect", handleDisconnect);
 
     //cleanup
     return () => {
       socket.off("connect", handleConnection);
-      socket.off("user-joined", handleUserJoined);
+      socket.off("initial-code", handleInitialCode);
       socket.off("code-change", handleCodeUpdated);
+      socket.off("user-joined", handleUserJoined);
 
       socket.off("user-left", handleUserLeft);
       socket.off("disconnect", handleDisconnect);
     };
-  }, [roomId, username, socket]);
+  }, [roomId, username, user?.uid, socket]);
 
   const updateCode = useCallback(
     (activeTab, newCode) => {

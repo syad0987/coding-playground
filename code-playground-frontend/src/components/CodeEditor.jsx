@@ -1,7 +1,7 @@
 import Editor from "@monaco-editor/react";
 const CodeEditor = ({ activeTab, code, onCodeChange }) => {
   const handleChange = (value) => {
-    console.log(`🎛️ Monaco ${activeTab} change:`, value?.substring(0, 50));
+    console.log(`Monaco ${activeTab} change:`, value?.substring(0, 50));
     onCodeChange(activeTab, value);
   };
   return (

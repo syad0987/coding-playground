@@ -1,15 +1,20 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
+import { useAuthState } from "react-firebase-hooks/auth";
+import { auth } from "./firebase";
+import CodeEditor from "./components/CodeEditor";
+import ProjectModal from "./components/ProjectModal";
 import { useCodeSync } from "./hooks/useCodeSync";
 import EditorTabs from "./components/EditorTabs";
-import CodeEditor from "./components/CodeEditor";
+
 import UserList from "./components/UserList";
 import RoomControls from "./components/RoomControls";
 import LivePreview from "./components/LivePreview";
 import ConnectionScreen from "./components/ConnectionScreen";
-import ProjectModal from "./components/ProjectModal";
-// import { set } from "mongoose";
+import AuthStatus from "./components/AuthStatus";
+import useUrlLoader from "./hooks/useUrlLoader";
 function App() {
-  const [activeTab, setActiveTab] = useState("html");
+  const [user, loadingAuth] = useAuthState(auth);
+
   const {
     roomId,
     username,
@@ -19,46 +24,17 @@ function App() {
     updateCode,
     createNewRoom,
     socketId,
-  } = useCodeSync();
+  } = useCodeSync({ user });
+  const [activeTab, setActiveTab] = useState("html");
   const [showProjects, setShowProjects] = useState(false);
   const [projects, setProjects] = useState([]);
   const [loading, setLoading] = useState(false);
   const [userCount, setUserCount] = useState(0);
-  useEffect(() => {
-    setUserCount(users.length);
-  }, [users]);
 
-  const saveProject = async (title) => {
-    if (!title || !title.trim()) {
-      alert("please enter project name");
-      return;
-    }
-    const project = {
-      title,
-      roomId,
-      code,
-      owner: username,
-      ispublic: true,
-    };
-    try {
-      const res = await fetch("http://localhost:3001/projects", {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify(project),
-      });
-      if (!res.ok) throw new Error("saved failed");
-      const saved = await res.json();
-      console.log("✅ SAVED project:", saved.project._id);
+  // const [currentRoom, setCurrentRoom] = useState(null);
 
-      setProjects([...projects, saved.project]);
-      setTimeout(() => loadProjects(), 300);
-      setShowProjects(false);
-    } catch (err) {
-      console.log("save error:", err);
-      alert("save failed - check backend");
-    }
-  };
-  const loadProjects = async () => {
+  //  PROJECT FUNCTIONS
+  const loadProjects = useCallback(async () => {
     if (!username) {
       console.log("no username- skip load");
       setProjects([]);
@@ -77,30 +53,84 @@ function App() {
       console.error("error loading projects:", err);
       setProjects([]);
     }
-  };
-  const loadProject = async (projectId) => {
-    setLoading(true);
-    // setShowProjects(false);
+  }, [username]);
+  const loadProject = useCallback(
+    async (projectId) => {
+      setLoading(true);
 
-    try {
-      const res = await fetch(`http://localhost:3001/projects/${projectId}`);
-      const project = await res.json();
-      updateCode(project.code);
-      setActiveTab("html");
-    } finally {
-      setLoading(false);
-      setShowProjects(false);
-    }
-  };
+      try {
+        const res = await fetch(`http://localhost:3001/projects/${projectId}`);
+        const project = await res.json();
+        updateCode(project.code);
+        setActiveTab("html");
+      } catch (err) {
+        console.error("load error:", err);
+        alert("Could not load project");
+      } finally {
+        setLoading(false);
+        setShowProjects(false);
+      }
+    },
+    [updateCode],
+  );
+  const saveProject = useCallback(
+    async (title) => {
+      if (!title || !title.trim()) {
+        alert("please enter project name");
+        return;
+      }
+      const project = {
+        title,
+        roomId,
+        code,
+        owner: username,
+        ispublic: true,
+      };
+      try {
+        const res = await fetch("http://localhost:3001/projects", {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify(project),
+        });
+        if (!res.ok) throw new Error("saved failed");
+        const saved = await res.json();
+        console.log("✅ SAVED project:", saved.project._id);
 
+        setProjects([...projects, saved.project]);
+        setTimeout(() => loadProjects(), 300);
+        setShowProjects(false);
+      } catch (err) {
+        console.log("save error:", err);
+        alert("save failed - check backend");
+      }
+    },
+    [roomId, code, username, projects, loadProjects],
+  );
+
+  useEffect(() => {
+    setUserCount(users.length);
+  }, [users]);
+  useUrlLoader(loadProject, updateCode);
+
+  if (loadingAuth) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-xl">Loading...</div>
+      </div>
+    );
+  }
   if (!roomId) {
     return <ConnectionScreen username={username} setUsername={setUsername} />;
   }
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-gray-900 p-8">
       <div className="max-w-6xl mx-auto">
         {/*header*/}
         <header className="mb-8 flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+          <div>
+            <AuthStatus />
+          </div>
           <div>
             <h1 className="text-4xl font-bold bg-gradient-to-r from-blue-400 to-purple-500 bg-clip-text text-transparent mb-2">
               CodePlayGround

@@ -39,26 +39,29 @@ app.get("/health", (req, res) => {
 io.on("connection", (socket) => {
   console.log("connected", socket.id);
 
-  socket.on("join-room", ({ roomId, username }) => {
+  socket.on("join-room", ({ roomId, username, firebaseUid }) => {
     socket.roomId = roomId;
     socket.username = username || `user-${socket.id.slice(-4)}`;
+    socket.firebaseUid = firebaseUid;
     socket.join(roomId);
 
     // ✅ FIXED: Proper immutable updates
-    if (!rooms[roomId]) rooms[roomId] = [];
-    rooms[roomId] = [
-      ...rooms[roomId].filter((u) => u.id !== socket.id),
+    if (!rooms[roomId])
+      rooms[roomId] = { users: [], code: { html: "", css: "", js: "" } };
+    rooms[roomId].users = [
+      ...rooms[roomId].users.filter((u) => u.id !== socket.id),
       { id: socket.id, username: socket.username },
     ];
-
+    socket.emit("initial-code", rooms[roomId].code);
+    io.to(roomId).emit("user-joined", { users: rooms[roomId].users, roomId });
     console.log(
       `${socket.username} joined ${roomId} (${rooms[roomId].length})`,
     );
-    io.to(roomId).emit("user-joined", { users: rooms[roomId], roomId });
   });
 
   socket.on("code-change", (data) => {
     if (data.roomId && data.code) {
+      rooms[data.roomId].code = data.code;
       socket.to(data.roomId).emit("code-change", data.code);
     }
   });
@@ -75,6 +78,12 @@ io.on("connection", (socket) => {
       console.log(
         `${socket.username} left ${socket.roomId} (${rooms[socket.roomId].length || 0} remains)`,
       );
+    }
+  });
+
+  socket.on("get-room-code", async (roomId) => {
+    if (rooms[roomId]) {
+      socket.emit("initial-code", rooms[roomId].code);
     }
   });
 });
@@ -126,8 +135,30 @@ app.get("/projects", async (req, res) => {
 app.get("/projects/:id", async (req, res) => {
   try {
     const project = await Project.findById(req.params.id);
-    project ? res.json(project) : res.status(404).json({ error: "not found" });
+    if (!project) {
+      // project = await Project.findOne({ title: idOrTitle });
+      return res.status(404).json({ error: "Project not found" });
+    }
+    // project ? res.json(project) : res.status(404).json({ error: "not found" });
+    res.json(project);
   } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.get("/room/:roomId", async (req, res) => {
+  try {
+    const project = await Project.findOne({ roomId: req.params.roomId });
+    if (project && !rooms[req.params.roomId]) {
+      rooms[req.params.roomId] = {
+        users: [],
+        code: project.code,
+      };
+    }
+    res.json(
+      rooms[req.params.roomId] || { code: { html: "", css: "", js: "" } },
+    );
+  } catch (error) {
     res.status(500).json({ error: err.message });
   }
 });
